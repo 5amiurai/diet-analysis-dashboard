@@ -1,0 +1,13 @@
+{
+    
+  "auth": {
+    "identityProviders": {
+      "github": {}
+    }
+  },
+  "routes": [
+    { "route": "/.auth/login/github", "allowedRoles": ["anonymous"] },
+    { "route": "/.auth/me", "allowedRoles": ["anonymous"] },
+    { "route": "/.auth/logout", "allowedRoles": ["anonymous"] }
+  ]
+}

@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+ 
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Diet Analysis Dashboard - Phase 3</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root { --bg: #0f172a; --surface: #1e293b; --border: #334155; --accent: #38bdf8; --text: #f1f5f9; --muted: #94a3b8; }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; }
+
+    /* Auth Overlay */
+    #authOverlay { position: fixed; inset: 0; background: var(--bg); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+    .auth-card { background: var(--surface); padding: 2rem; border-radius: 12px; border: 1px solid var(--border); width: 100%; max-width: 400px; }
+    .auth-card h2 { color: var(--accent); margin-bottom: 1.5rem; }
+    .auth-card input { width: 100%; padding: 0.75rem; margin-bottom: 1rem; background: var(--bg); border: 1px solid var(--border); color: white; border-radius: 6px; box-sizing: border-box; }
+    .auth-card button { width: 100%; padding: 0.75rem; background: var(--accent); border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-bottom: 0.5rem; }
+    .github-btn { background: #24292e !important; color: white !important; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+
+    /* Dashboard Layout */
+    #dashboardContent { display: none; }
+    header { background: var(--surface); padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
+    .user-info { display: flex; align-items: center; gap: 1rem; }
+    .logout-btn { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; }
+
+    main { padding: 2rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; }
+    .card.wide { grid-column: 1 / -1; }
+
+    /* Search & Table */
+    .search-box { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.9rem; }
+    th, td { text-align: left; padding: 0.75rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--accent); }
+    .pagination { display: flex; justify-content: center; align-items: center; gap: 1rem; margin-top: 1rem; }
+    .pagination button { padding: 0.4rem 1rem; background: var(--accent); border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+    .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+
+<!-- 1. AUTHENTICATION SCREEN -->
+<div id="authOverlay">
+  <div class="auth-card">
+    <h2 id="authTitle">Login to Dashboard</h2>
+    <input type="text" id="userName" placeholder="Full Name (for registration)" style="display:none;">
+    <input type="email" id="authEmail" placeholder="Email">
+    <input type="password" id="authPassword" placeholder="Password">
+    <button onclick="handleAuth()" id="authBtn">Login</button>
+    <button onclick="location.href='/.auth/login/github'" class="github-btn">
+      <svg height="20" width="20" viewBox="0 0 16 16" fill="white"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
+      Login with GitHub
+    </button>
+    <p style="font-size: 0.8rem; color: var(--muted); text-align: center; cursor: pointer; margin-top: 1rem;" onclick="toggleAuthMode()" id="toggleText">Need an account? Register</p>
+  </div>
+</div>
+
+<!-- 2. DASHBOARD CONTENT -->
+<div id="dashboardContent">
+  <header>
+    <div>
+      <h1 style="font-size: 1.2rem; margin: 0;">&#127869; Diet Analysis Pro</h1>
+      <p style="font-size: 0.8rem; color: var(--muted); margin: 0;">Phase 3 - Performance &amp; Security Optimized</p>
+    </div>
+    <div class="user-info">
+      <span id="displayUserName">User</span>
+      <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Search & Interaction -->
+    <div class="card wide">
+      <h2>&#128269; Recipe Search &amp; Interaction</h2>
+      <div class="search-box">
+        <input type="text" id="searchInput" placeholder="Search recipes (e.g. chicken, salad)..."
+          style="flex:1; padding: 0.5rem; border-radius: 4px; border: 1px solid var(--border); background: var(--bg); color: white;">
+        <select id="dietFilter" style="padding: 0.5rem; border-radius: 4px; background: var(--bg); color: white; border: 1px solid var(--border);">
+          <option value="">All Diets</option>
+          <option value="keto">Keto</option>
+          <option value="vegan">Vegan</option>
+          <option value="mediterranean">Mediterranean</option>
+          <option value="paleo">Paleo</option>
+          <option value="dash">Dash</option>
+        </select>
+        <button onclick="searchRecipes(1)" style="padding: 0.5rem 1rem; background: var(--accent); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Search</button>
+      </div>
+      <table id="recipeTable">
+        <thead><tr><th>Recipe Name</th><th>Diet Type</th><th>Cuisine</th><th>Protein (g)</th><th>Carbs (g)</th></tr></thead>
+        <tbody id="recipeBody"></tbody>
+      </table>
+      <div class="pagination">
+        <button onclick="changePage(-1)" id="prevBtn" disabled>&#8592; Previous</button>
+        <span id="pageDisplay">Page 1</span>
+        <button onclick="changePage(1)" id="nextBtn">Next &#8594;</button>
+      </div>
+    </div>
+
+    <!-- Charts (Loaded from Cosmos DB Cache) -->
+    <div class="card"><h2>&#128202; Avg Macronutrients by Diet</h2><canvas id="barChart"></canvas></div>
+    <div class="card"><h2>&#129383; Recipe Distribution by Diet</h2><canvas id="pieChart"></canvas></div>
+  </main>
+</div>
+
+<script>
+  const API_BASE = "https://diet-analysis-fn-sr-e0dhdrheegddcadq.canadacentral-01.azurewebsites.net/api";
+  let currentUser = null;
+  let currentPage = 1;
+  let totalRecipes = 0;
+  const PAGE_SIZE = 10;
+  let authMode = 'login';
+  let barChartInstance = null;
+  let pieChartInstance = null;
+
+  // ── OAUTH CHECK ──────────────────────────────────────────────
+  async function checkOAuth() {
+    try {
+      const res = await fetch("/.auth/me");
+      const payload = await res.json();
+      if (payload.clientPrincipal) {
+        currentUser = { 
+          name: payload.clientPrincipal.userDetails,
+          email: payload.clientPrincipal.userDetails 
+        };
+        document.getElementById('displayUserName').innerText = currentUser.name;
+        document.getElementById('authOverlay').style.display = 'none';
+        document.getElementById('dashboardContent').style.display = 'block';
+        loadDashboardData();
+      }
+    } catch (err) {
+      console.log("OAuth check failed or not logged in via OAuth");
+    }
+  }
+  checkOAuth();
+
+  // ── AUTH LOGIC ──────────────────────────────────────────────
+  function toggleAuthMode() {
+    authMode = authMode === 'login' ? 'register' : 'login';
+    document.getElementById('authTitle').innerText = authMode === 'login' ? 'Login to Dashboard' : 'Create Account';
+    document.getElementById('authBtn').innerText = authMode === 'login' ? 'Login' : 'Register';
+    document.getElementById('userName').style.display = authMode === 'login' ? 'none' : 'block';
+    document.getElementById('toggleText').innerText = authMode === 'login' ? 'Need an account? Register' : 'Have an account? Login';
+  }
+
+  async function handleAuth() {
+    const email = document.getElementById('authEmail').value.trim();
+    const password = document.getElementById('authPassword').value;
+    const name = document.getElementById('userName').value.trim();
+
+    if (!email || !password) {
+      alert("Please enter your email and password.");
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/auth`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: authMode, email, password, name })
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        if (authMode === 'login') {
+          currentUser = { email: email, name: data.name || email.split('@')[0] };
+          document.getElementById('displayUserName').innerText = currentUser.name;
+          document.getElementById('authOverlay').style.display = 'none';
+          document.getElementById('dashboardContent').style.display = 'block';
+          loadDashboardData();
+        } else {
+          alert("Registration successful! Please login.");
+          toggleAuthMode();
+        }
+      } else {
+        alert(data.error || "Authentication failed. Check your credentials.");
+      }
+    } catch (err) {
+      alert("Network error: " + err.message);
+    }
+  }
+
+  function logout() {
+    currentUser = null;
+    // If logged in via OAuth, redirect to logout endpoint
+    location.href = "/.auth/logout?post_logout_redirect_uri=" + window.location.origin;
+  }
+
+  // ── DASHBOARD DATA ───────────────────────────────────────────
+  async function loadDashboardData() {
+    try {
+      const res = await fetch(`${API_BASE}/analyze`);
+      const data = await res.json();
+      if (data.summary) renderCharts(data.summary);
+      renderRecipes(data.recipes || [], data.total || 0, 1);
+    } catch (err) {
+      console.error("Failed to load dashboard data:", err);
+    }
+  }
+
+  async function searchRecipes(page) {
+    currentPage = page;
+    const search = document.getElementById('searchInput').value.trim();
+    const diet = document.getElementById('dietFilter').value;
+    let url = `${API_BASE}/analyze?page=${page}`;
+    if (search) url += `&search=${encodeURIComponent(search)}`;
+    if (diet) url += `&diet=${encodeURIComponent(diet)}`;
+    try {
+      const res = await fetch(url);
+      const data = await res.json();
+      renderRecipes(data.recipes || [], data.total || 0, page);
+    } catch (err) {
+      console.error("Search error:", err);
+    }
+  }
+
+  function renderRecipes(recipes, total, page) {
+    totalRecipes = total;
+    currentPage = page;
+    const body = document.getElementById('recipeBody');
+    if (recipes.length === 0) {
+      body.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--muted);">No recipes found.</td></tr>';
+    } else {
+      body.innerHTML = recipes.map(r => `
+        <tr>
+          <td>${r.Recipe_name || '—'}</td>
+          <td>${r.Diet_type || '—'}</td>
+          <td>${r.Cuisine_type || '—'}</td>
+          <td>${r['Protein(g)'] !== undefined ? r['Protein(g)'] + 'g' : '—'}</td>
+          <td>${r['Carbs(g)'] !== undefined ? r['Carbs(g)'] + 'g' : '—'}</td>
+        </tr>
+      `).join('');
+    }
+    const totalPages = Math.ceil(total / PAGE_SIZE);
+    document.getElementById('pageDisplay').innerText = `Page ${page} of ${totalPages || 1}`;
+    document.getElementById('prevBtn').disabled = page <= 1;
+    document.getElementById('nextBtn').disabled = page >= totalPages;
+  }
+
+  function changePage(delta) { searchRecipes(currentPage + delta); }
+
+  // ── CHARTS ───────────────────────────────────────────────────
+  function renderCharts(summary) {
+    const macroLabels = ['Protein (g)', 'Carbs (g)', 'Fat (g)', 'Fiber (g)'];
+    const macroKeys   = ['Protein(g)_mean', 'Carbs(g)_mean', 'Fat(g)_mean', 'Fiber(g)_mean'];
+    const macroValues = macroKeys.map(k => summary[k] || 0);
+    if (barChartInstance) barChartInstance.destroy();
+    barChartInstance = new Chart(document.getElementById('barChart'), {
+      type: 'bar',
+      data: {
+        labels: macroLabels,
+        datasets: [{ label: 'Average (g)', data: macroValues, backgroundColor: ['#38bdf8', '#818cf8', '#34d399', '#fb923c'] }]
+      },
+      options: {
+        plugins: { legend: { labels: { color: '#f1f5f9' } } },
+        scales: {
+          x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+          y: { beginAtZero: true, ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }
+        }
+      }
+    });
+    const dist = summary.diet_distribution || {};
+    const pieLabels = Object.keys(dist);
+    const pieValues = Object.values(dist);
+    if (pieChartInstance) pieChartInstance.destroy();
+    if (pieLabels.length > 0) {
+      pieChartInstance = new Chart(document.getElementById('pieChart'), {
+        type: 'pie',
+        data: { labels: pieLabels, datasets: [{ data: pieValues, backgroundColor: ['#38bdf8', '#818cf8', '#34d399', '#fb923c', '#f472b6', '#a78bfa'] }] },
+        options: { plugins: { legend: { labels: { color: '#f1f5f9' } } } }
+      });
+    }
+  }
+</script>
+</body>
+</html>
